@@ -173,7 +173,7 @@ def train(train_loader, model, criterion, optimizer):
             )
         )
 
-    print('')
+    print('+++\n')
 
 
 def test(test_loader, model, criterion):
@@ -201,7 +201,7 @@ def test(test_loader, model, criterion):
         print('Test: [{0}/{1}]\n'
               'Loss: {2} - Avg: {3}\n'
               'Top1: {4} - Avg: {5}\n'
-              'Top5: {6} - Avg: {7}\n\n'.format(
+              'Top5: {6} - Avg: {7}\n'.format(
                 i + 1,
                 len(test_loader),
                 losses.val,
@@ -213,7 +213,7 @@ def test(test_loader, model, criterion):
             )
         )
 
-    print('---\n\n')
+    print('---\n')
 
     return top1.avg
 
