@@ -14,16 +14,8 @@ class Classifier:
         # Create the model
         self.model = models.vgg16(pretrained=True)
 
-        # Freeze the first few layers
-        ct = 0
-        for name, child in self.model.named_children():
-            ct += 1
-            if ct < 1:
-                j = 0
-                for name2, params in child.named_parameters():
-                    j += 1
-                    if j < 7:
-                        params.requires_grad = False
+        # Freeze the first few layers of feature extractor
+        self.__freeze_layers(5)
 
         # Define a criterion for the loss function
         self.criterion = nn.CrossEntropyLoss()
@@ -84,6 +76,19 @@ class Classifier:
         )
 
         return train_loader, test_loader
+
+    #
+    #
+    #
+    def __freeze_layers(self, layer_count):
+        # Fetch the feature extractor from model
+        feature_extractor, classifier = self.model.named_children()
+
+        # Freeze the n layers of the feature extractor
+        i = 0
+        for name2, params in feature_extractor[1].named_parameters():
+            params.requires_grad = False if i < layer_count else True
+            i += 1
 
     #
     #
