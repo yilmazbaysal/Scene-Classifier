@@ -21,16 +21,10 @@ class Classifier:
         self.criterion = nn.CrossEntropyLoss()
 
         # Change the last layer of the model
-        numb = self.model.classifier[6].in_features
-        features = list(self.model.classifier.children())[:-1]
-        features.extend([nn.Linear(numb, 20)])
-        self.model.classifier = nn.Sequential(*features)
+        self.__change_the_last_layer()
 
         # Define an optimizer for the loss function
-        self.optimizer = torch.optim.SGD(
-            self.model.classifier._modules['6'].parameters(),
-            learning_rate
-        )
+        self.optimizer = torch.optim.SGD(self.model.classifier._modules['6'].parameters(), learning_rate)
 
         # Load the dataset images
         self.train_loader, self.test_loader = self.__load_the_data(train_dir, test_dir, batch_size)
@@ -89,6 +83,22 @@ class Classifier:
         for name2, params in feature_extractor[1].named_parameters():
             params.requires_grad = False if i < layer_count else True
             i += 1
+
+    #
+    #
+    #
+    def __change_the_last_layer(self):
+        # Fetch the number of features in the model
+        number_of_features = self.model.classifier[6].in_features
+
+        # Get the list of layers except the last one
+        features = list(self.model.classifier.children())[:-1]
+
+        # Add the new layer to the list
+        features.extend([nn.Linear(number_of_features, 20)])
+
+        # Replace the layers of the model with the new one
+        self.model.classifier = nn.Sequential(*features)
 
     #
     #
