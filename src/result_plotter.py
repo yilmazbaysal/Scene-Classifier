@@ -1,7 +1,4 @@
-import re
-
 from matplotlib import pyplot
-
 
 
 def plot_the_results(train_results, test_results):
@@ -33,9 +30,9 @@ def parse_the_file(file_path):
     test_result_dict_list = []
 
     with open(file_path) as f:
-        for epoch in f.read().split('\n\n\n---\n\n\n'):
+        for epoch in f.read().split('\n\n---\n\n'):
             if epoch:
-                train, test = epoch.split('\n\n\n')
+                train, test = epoch.split('\n\n+++\n\n')
 
                 # Parse the training metrics
                 train = train.split('\n\n')
@@ -76,7 +73,7 @@ def parse_the_file(file_path):
     return train_result_dict_list, test_result_dict_list
 
 
-train_results, test_results = parse_the_file('/home/yilmaz/Desktop/results/lr-0001_epoch-5_batch-8.txt')
+train_results, test_results = parse_the_file('/home/yilmaz/Desktop/lr-1_epoch-1_batch-8.txt')
 
 
 plot_the_results(train_results, test_results)

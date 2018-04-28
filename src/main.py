@@ -1,23 +1,8 @@
 import argparse
-import time
-
-import torch
-import torch.nn as nn
-import torch.nn.parallel
-import torch.optim
-import torch.utils.data
-import torch.utils.data.distributed
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-import torchvision.models as models
-from torch.autograd import Variable
 
 import dataset_organizer
+from classifier import Classifier
 
-
-model_names = sorted(name for name in models.__dict__
-                     if name.islower() and not name.startswith("__")
-                     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 
@@ -57,202 +42,20 @@ parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
 parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
 
-best_prec1 = 0
 
+# Parse the data
+dataset_organizer.organize()
 
-def main():
-    # Parse the data
-    dataset_organizer.organize()
+args = parser.parse_args()
 
-    global args, best_prec1
-    args = parser.parse_args()
+classifier = Classifier(args.lr, args.batch_size, '/tmp/b21327694_dataset/train/', '/tmp/b21327694_dataset/test/')
 
-    # create model
-    model = models.vgg16(pretrained=True)
+for epoch in range(0, args.epochs):
+    # train for one epoch
+    classifier.train()
 
-    # model.features = torch.nn.DataParallel(model.features)
+    # evaluate on test set
+    classifier.test()
 
-    ct = 0
-    for name, child in model.named_children():
-        ct += 1
-        if ct < 1:
-            j = 0
-            for name2, params in child.named_parameters():
-                j += 1
-                if j < 7:
-                    params.requires_grad = False
-
-    # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss()
-
-    # Change the last layer of the model
-    numb = model.classifier[6].in_features
-    features = list(model.classifier.children())[:-1]
-    features.extend([nn.Linear(numb, 20)])
-    model.classifier = nn.Sequential(*features)
-
-    optimizer = torch.optim.SGD(
-        model.classifier._modules['6'].parameters(),
-        args.lr
-    )
-
-    # Data loading code
-    train_directory = '/tmp/b21327694_dataset/train/'
-    test_directory = '/tmp/b21327694_dataset/test/'
-
-    normalize = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-
-    train_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(
-            train_directory,
-            transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize,
-            ])
-        ),
-        batch_size=args.batch_size,
-        shuffle=True,
-    )
-
-    test_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(
-            test_directory,
-            transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                normalize,
-            ])
-        ),
-        batch_size=args.batch_size,
-    )
-
-    for epoch in range(0, args.epochs):
-        # train for one epoch
-        train(train_loader, model, criterion, optimizer)
-
-        # evaluate on test set
-        test(test_loader, model, criterion)
-
-
-def train(train_loader, model, criterion, optimizer):
-    batch_time = AverageMeter()
-    losses = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
-
-    # switch to train mode
-    model.train()
-
-    for i, (inputs, target) in enumerate(train_loader):
-        input_var, target_var = Variable(inputs), Variable(target)
-
-        # compute output
-        output = model(input_var)
-        loss = criterion(output, target_var)
-
-        # Record loss
-        losses.update(loss.data[0], input_var.size(0))
-
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        print('Train: [{0}/{1}]\n'
-              'Loss: {2} - Avg: {3}\n'.format(
-                i + 1,
-                len(train_loader),
-                losses.val,
-                losses.avg,
-            )
-        )
-
-    print('+++\n')
-
-
-def test(test_loader, model, criterion):
-    losses = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
-
-    # switch to evaluate mode
-    model.eval()
-
-    end = time.time()
-    for i, (input, target) in enumerate(test_loader):
-        # compute output
-        input_variable, target_variable = Variable(input), Variable(target)
-
-        outputs = model(input_variable)
-        loss = criterion(outputs, target_variable)
-
-        # measure accuracy and record loss
-        prec1, prec5 = accuracy(outputs.data, target_variable.data, topk=(1, 5))
-        losses.update(loss.data[0], input_variable.size(0))
-        top1.update(prec1[0], input_variable.size(0))
-        top5.update(prec5[0], input_variable.size(0))
-
-        print('Test: [{0}/{1}]\n'
-              'Loss: {2} - Avg: {3}\n'
-              'Top1: {4} - Avg: {5}\n'
-              'Top5: {6} - Avg: {7}\n'.format(
-                i + 1,
-                len(test_loader),
-                losses.val,
-                losses.avg,
-                float(top1.val),
-                float(top1.avg),
-                float(top5.val),
-                float(top5.avg)
-            )
-        )
-
-    print('---\n')
-
-    return top1.avg
-
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-
-def accuracy(output, target, topk):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(100.0 / batch_size))
-
-    return res
-
-
-if __name__ == '__main__':
-    main()
+# Plot the results (average loss, average top1, average top5)
+classifier.plot_the_results()
