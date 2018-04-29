@@ -7,7 +7,7 @@ from torchvision.transforms import transforms
 
 class Classifier:
 
-    def __init__(self, learning_rate, batch_size, train_dir, test_dir):
+    def __init__(self, learning_rate, batch_size, freeze_layers, data_augmentation, train_dir, test_dir):
         self.train_metrics = []
         self.test_metrics = []
 
@@ -15,7 +15,7 @@ class Classifier:
         self.model = models.vgg16(pretrained=True)
 
         # Freeze the first few layers of feature extractor
-        self.__freeze_layers(5)
+        self.__freeze_layers(freeze_layers)
 
         # Define a criterion for the loss function
         self.criterion = nn.CrossEntropyLoss()
@@ -27,30 +27,49 @@ class Classifier:
         self.optimizer = torch.optim.SGD(self.model.classifier._modules['6'].parameters(), learning_rate)
 
         # Load the dataset images
-        self.train_loader, self.test_loader = self.__load_the_data(train_dir, test_dir, batch_size)
+        self.train_loader, self.test_loader = self.__load_the_data(train_dir, test_dir, batch_size, data_augmentation)
 
     #
     #
     #
     @staticmethod
-    def __load_the_data(train_dir, test_dir, batch_size):
-        # Set normalization metrics for the data loaders
-        normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
+    def __load_the_data(train_dir, test_dir, batch_size, data_augmentation):
+        # Assign transform values with respect to the data augmentation strategy
+        if data_augmentation:
+            # Set normalization metrics for the data loaders
+            normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+            train_transform_list = [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomResizedCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ]
+
+            test_transform_list = [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ]
+        else:
+            # Set normalization metrics for the data loaders
+            normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+
+            train_transform_list = [
+                transforms.RandomResizedCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ]
+
+            test_transform_list = [
+                transforms.ToTensor(),
+                normalize,
+            ]
 
         # Load the train directory and shuffle the images
         train_loader = torch.utils.data.DataLoader(
-            datasets.ImageFolder(
-                train_dir,
-                transforms.Compose([
-                    transforms.RandomResizedCrop(224),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                    normalize,
-                ])
-            ),
+            datasets.ImageFolder(train_dir, transforms.Compose(train_transform_list)),
             batch_size=batch_size,
             shuffle=True,
         )
@@ -59,12 +78,7 @@ class Classifier:
         test_loader = torch.utils.data.DataLoader(
             datasets.ImageFolder(
                 test_dir,
-                transforms.Compose([
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),
-                    normalize,
-                ])
+                transforms.Compose(test_transform_list)
             ),
             batch_size=batch_size,
         )
