@@ -63,6 +63,7 @@ class Classifier:
             ]
 
             test_transform_list = [
+                transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 normalize,
             ]
