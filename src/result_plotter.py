@@ -4,23 +4,37 @@ from matplotlib import pyplot
 def plot_the_results(train_results, test_results):
     pyplot.figure(1)
 
-    pyplot.subplot(311)
+    # Loss
+    pyplot.subplot(212)
     pyplot.plot(
+        [x['loss'] for x in train_results],
+        'co-',
         [x['loss_avg'] for x in train_results],
-        'co-'
+        'r-'
     )
+    pyplot.title('Loss')
+    pyplot.legend(['Loss', 'Average Loss'])
 
-    pyplot.subplot(312)
+    # Top1 - Top5 accuracies
+    pyplot.subplot(221)
     pyplot.plot(
+        [x['top1'] for x in test_results],
+        'go-',
         [x['top1_avg'] for x in test_results],
-        'ro-'
+        'r-'
     )
+    pyplot.title('Top1 (Accuracy)')
+    pyplot.legend(['Top1', 'Average Top1'])
 
-    pyplot.subplot(313)
+    pyplot.subplot(222)
     pyplot.plot(
+        [x['top5'] for x in test_results],
+        'bo-',
         [x['top5_avg'] for x in test_results],
-        'bo-'
+        'r-'
     )
+    pyplot.title('Top5 (Accuracy)')
+    pyplot.legend(['Top5', 'Average Top5'])
 
     pyplot.show()
 
@@ -73,7 +87,7 @@ def parse_the_file(file_path):
     return train_result_dict_list, test_result_dict_list
 
 
-train_results, test_results = parse_the_file('/home/yilmaz/Desktop/lr-1_epoch-1_batch-8.txt')
+train_results, test_results = parse_the_file('/home/yilmaz/Desktop/results_yilmaz/lr-01_epoch-1_batch-8.txt')
 
 
 plot_the_results(train_results, test_results)

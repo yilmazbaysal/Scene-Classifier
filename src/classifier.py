@@ -1,4 +1,5 @@
 import torch
+from matplotlib import pyplot
 from torch import nn
 from torch.autograd import Variable
 from torchvision import models, datasets
@@ -127,11 +128,11 @@ class Classifier:
         for i, (inputs, labels) in enumerate(self.train_loader):
             inputs, labels = Variable(inputs), Variable(labels)
 
-            # compute output
-            output = self.model(inputs)
-            loss = self.criterion(output, labels)
+            # Compute outputs
+            outputs = self.model(inputs)
 
-            # Record loss
+            # Calculate loss
+            loss = self.criterion(outputs, labels)
             losses.update(loss.data[0], inputs.size(0))
 
             # compute gradient and do SGD step
@@ -163,18 +164,20 @@ class Classifier:
         # switch to evaluate mode
         self.model.eval()
 
-        for i, (input, target) in enumerate(self.test_loader):
-            # compute output
-            input_variable, target_variable = Variable(input), Variable(target)
+        for i, (inputs, labels) in enumerate(self.test_loader):
+            inputs, labels = Variable(inputs), Variable(labels)
 
-            outputs = self.model(input_variable)
-            loss = self.criterion(outputs, target_variable)
+            # Compute outputs
+            outputs = self.model(inputs)
 
-            # measure accuracy and record loss
-            prec1, prec5 = self.__accuracy(outputs.data, target_variable.data, topk=(1, 5))
-            losses.update(loss.data[0], input_variable.size(0))
-            top1.update(prec1[0], input_variable.size(0))
-            top5.update(prec5[0], input_variable.size(0))
+            # Calculate loss
+            loss = self.criterion(outputs, labels)
+            losses.update(loss.data[0], inputs.size(0))
+
+            # Calculate top 1 and 5 accuracies
+            prec1, prec5 = self.__accuracy(outputs.data, labels.data, topk=(1, 5))
+            top1.update(prec1[0], inputs.size(0))
+            top5.update(prec5[0], inputs.size(0))
 
             # Store the metrics for plotting
             self.test_metrics.append({
@@ -198,12 +201,6 @@ class Classifier:
     #
     #
     #
-    def plot_the_results(self):
-        pass
-
-    #
-    #
-    #
     @staticmethod
     def __accuracy(outputs, labels, topk):
         """Computes the precision@k for the specified values of k"""
@@ -220,6 +217,46 @@ class Classifier:
             res.append(correct_k.mul_(100.0 / batch_size))
 
         return res
+
+    #
+    #
+    #
+    def plot_the_results(self):
+        pyplot.figure(1)
+
+        # Loss
+        pyplot.subplot(212)
+        pyplot.plot(
+            [x['loss'] for x in self.train_metrics],
+            'co-',
+            [x['loss_avg'] for x in self.train_metrics],
+            'r-'
+        )
+        pyplot.title('Loss')
+        pyplot.legend(['Loss', 'Average Loss'])
+
+        # Top1 - Top5 accuracies
+        pyplot.subplot(221)
+        pyplot.plot(
+            [x['top1'] for x in self.test_metrics],
+            'go-',
+            [x['top1_avg'] for x in self.test_metrics],
+            'r-'
+        )
+        pyplot.title('Top1 (Accuracy)')
+        pyplot.legend(['Top1', 'Average Top1'])
+
+        pyplot.subplot(222)
+        pyplot.plot(
+            [x['top5'] for x in self.test_metrics],
+            'bo-',
+            [x['top5_avg'] for x in self.test_metrics],
+            'r-'
+        )
+        pyplot.title('Top5 (Accuracy)')
+        pyplot.legend(['Top5', 'Average Top5'])
+
+        pyplot.show()
 
 
 class AverageMeter:
